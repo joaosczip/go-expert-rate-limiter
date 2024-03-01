@@ -1,7 +1,13 @@
 package ratelimiter
 
 import (
+	"errors"
+	"sync"
 	"time"
+)
+
+var (
+	errMaxRequests = errors.New("you have reached the maximum number of requests or actions allowed within a certain time frame")
 )
 
 type RateLimiter struct {
@@ -15,6 +21,11 @@ func NewRateLimiter(rps int, blockDuration time.Duration) *RateLimiter {
 
 type RateLimiterManager struct {
 	Clients map[string]*ClientLimiter
+}
+
+type RateLimiterConfig struct {
+	RequestesPerSecond int
+	BlockUserFor       time.Duration
 }
 
 func NewRateLimiterManager() *RateLimiterManager {
@@ -32,6 +43,36 @@ func (r *RateLimiterManager) clearRequests() {
 			client.clearRequests()
 		}
 	}
+}
+
+func (r *RateLimiterManager) HandleRequest(ip string, config RateLimiterConfig) error {
+	clients := r.Clients
+	mux := sync.Mutex{}
+
+	if _, found := clients[ip]; !found {
+		clients[ip] = NewClientLimiter(config.RequestesPerSecond, config.BlockUserFor)
+	}
+
+	mux.Lock()
+	defer mux.Unlock()
+	clients[ip].LastSeen = time.Now()
+
+	if clients[ip].IsBlocked() {
+		if clients[ip].HasBlockingExpired() {
+			clients[ip].ResetBlock()
+		} else {
+			return errMaxRequests
+		}
+	}
+
+	clients[ip].TotalRequests += 1
+
+	if clients[ip].ShouldBlock() {
+		clients[ip].Block()
+		return errMaxRequests
+	}
+
+	return nil
 }
 
 type ClientLimiter struct {
@@ -62,7 +103,7 @@ func (c *ClientLimiter) HasBlockingExpired() bool {
 
 func (c *ClientLimiter) ResetBlock() {
 	c.Blocked = false
-	c.TotalRequests = 1
+	c.TotalRequests = 0
 }
 
 func (c *ClientLimiter) ShouldBlock() bool {

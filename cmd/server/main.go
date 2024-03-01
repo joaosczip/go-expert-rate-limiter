@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/joaosczip/go-rate-limiter/internal/http/middlewares"
+	"github.com/joaosczip/go-rate-limiter/pkg/ratelimiter"
 )
 
 func listOrders(w http.ResponseWriter, r *http.Request) {
@@ -14,6 +15,6 @@ func listOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.Handle("/", middlewares.RateLimiter(listOrders, &middlewares.RateLimiterConfig{RequestesPerSecond: 5, BlockUserFor: time.Duration(10 * time.Second)}))
+	http.Handle("/", middlewares.RateLimiter(listOrders, &ratelimiter.RateLimiterConfig{RequestesPerSecond: 5, BlockUserFor: time.Duration(10 * time.Second)}))
 	http.ListenAndServe(":8080", nil)
 }
