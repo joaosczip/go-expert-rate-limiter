@@ -11,16 +11,7 @@ var (
 )
 
 type RateLimiter struct {
-	RequestsPerSecond int
-	BlockUserFor      time.Duration
-}
-
-func NewRateLimiter(rps int, blockDuration time.Duration) *RateLimiter {
-	return &RateLimiter{RequestsPerSecond: rps, BlockUserFor: blockDuration}
-}
-
-type RateLimiterManager struct {
-	Clients map[string]*ClientLimiter
+	Clients map[string]*ClientRateLimiter
 }
 
 type RateLimiterConfig struct {
@@ -28,15 +19,15 @@ type RateLimiterConfig struct {
 	BlockUserFor       time.Duration
 }
 
-func NewRateLimiterManager() *RateLimiterManager {
-	manager := &RateLimiterManager{Clients: make(map[string]*ClientLimiter)}
+func NewRateLimiter() *RateLimiter {
+	manager := &RateLimiter{Clients: make(map[string]*ClientRateLimiter)}
 
 	go manager.clearRequests()
 
 	return manager
 }
 
-func (r *RateLimiterManager) clearRequests() {
+func (r *RateLimiter) clearRequests() {
 	for {
 		time.Sleep(1 * time.Second)
 		for _, client := range r.Clients {
@@ -45,7 +36,7 @@ func (r *RateLimiterManager) clearRequests() {
 	}
 }
 
-func (r *RateLimiterManager) HandleRequest(ip string, config RateLimiterConfig) error {
+func (r *RateLimiter) HandleRequest(ip string, config RateLimiterConfig) error {
 	clients := r.Clients
 	mux := sync.Mutex{}
 
@@ -75,42 +66,46 @@ func (r *RateLimiterManager) HandleRequest(ip string, config RateLimiterConfig) 
 	return nil
 }
 
-type ClientLimiter struct {
-	Limiter       *RateLimiter
-	LastSeen      time.Time
-	Blocked       bool
-	BlockedAt     time.Time
-	TotalRequests int
+type ClientRateLimiter struct {
+	RequestsPerSecond int
+	BlockUserFor      time.Duration
+	LastSeen          time.Time
+	Blocked           bool
+	BlockedAt         time.Time
+	TotalRequests     int
 }
 
-func NewClientLimiter(rps int, blockDuration time.Duration) *ClientLimiter {
-	return &ClientLimiter{Limiter: NewRateLimiter(rps, blockDuration)}
+func NewClientLimiter(rps int, blockDuration time.Duration) *ClientRateLimiter {
+	return &ClientRateLimiter{
+		RequestsPerSecond: rps,
+		BlockUserFor:      blockDuration,
+	}
 }
 
-func (c *ClientLimiter) clearRequests() {
-	if c.TotalRequests <= c.Limiter.RequestsPerSecond {
+func (c *ClientRateLimiter) clearRequests() {
+	if c.TotalRequests <= c.RequestsPerSecond {
 		c.TotalRequests = 0
 	}
 }
 
-func (c *ClientLimiter) IsBlocked() bool {
+func (c *ClientRateLimiter) IsBlocked() bool {
 	return c.Blocked
 }
 
-func (c *ClientLimiter) HasBlockingExpired() bool {
-	return time.Since(c.BlockedAt) > c.Limiter.BlockUserFor
+func (c *ClientRateLimiter) HasBlockingExpired() bool {
+	return time.Since(c.BlockedAt) > c.BlockUserFor
 }
 
-func (c *ClientLimiter) ResetBlock() {
+func (c *ClientRateLimiter) ResetBlock() {
 	c.Blocked = false
 	c.TotalRequests = 0
 }
 
-func (c *ClientLimiter) ShouldBlock() bool {
-	return c.TotalRequests > c.Limiter.RequestsPerSecond
+func (c *ClientRateLimiter) ShouldBlock() bool {
+	return c.TotalRequests > c.RequestsPerSecond
 }
 
-func (c *ClientLimiter) Block() {
+func (c *ClientRateLimiter) Block() {
 	c.Blocked = true
 	c.BlockedAt = time.Now()
 }
