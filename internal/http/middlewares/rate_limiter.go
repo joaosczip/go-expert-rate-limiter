@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/joaosczip/go-rate-limiter/pkg/datasources"
 	"github.com/joaosczip/go-rate-limiter/pkg/ratelimiter"
 )
 
@@ -15,7 +16,7 @@ type Response struct {
 
 func RateLimiter(next func(w http.ResponseWriter, r *http.Request), config *ratelimiter.RateLimiterConfig) http.Handler {
 	rateLimiter := ratelimiter.NewRateLimiter(
-		ratelimiter.NewInMemoryDatasource(),
+		datasources.NewInMemoryDatasource(),
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
