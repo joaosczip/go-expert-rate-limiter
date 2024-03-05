@@ -85,7 +85,7 @@ func (r *RateLimiter) clearRequests() {
 	}
 }
 
-func (r *RateLimiter) HandleRequest(ip, token string, config RateLimiterConfig) error {
+func (r *RateLimiter) getClient(ip, token string, config RateLimiterConfig) *ClientRateLimiter {
 	ipConfig, tokenConfig := config.ConfigByIP, config.ConfigByToken
 
 	var client *ClientRateLimiter
@@ -104,6 +104,12 @@ func (r *RateLimiter) HandleRequest(ip, token string, config RateLimiterConfig) 
 		}
 		client = r.datasource.Get(token)
 	}
+
+	return client
+}
+
+func (r *RateLimiter) HandleRequest(ip, token string, config RateLimiterConfig) error {
+	client := r.getClient(ip, token, config)
 
 	if err := client.verifyAndBlockUser(); err != nil {
 		return err
