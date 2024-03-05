@@ -14,7 +14,9 @@ type Response struct {
 }
 
 func RateLimiter(next func(w http.ResponseWriter, r *http.Request), config *ratelimiter.RateLimiterConfig) http.Handler {
-	rateLimiter := ratelimiter.NewRateLimiter()
+	rateLimiter := ratelimiter.NewRateLimiter(
+		ratelimiter.NewInMemoryDatasource(),
+	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -25,7 +27,13 @@ func RateLimiter(next func(w http.ResponseWriter, r *http.Request), config *rate
 			return
 		}
 
-		err = rateLimiter.HandleRequest(ip, *config)
+		var token = ""
+
+		if config.ConfigByToken != nil {
+			token = r.Header.Get(config.ConfigByToken.Key)
+		}
+
+		err = rateLimiter.HandleRequest(ip, token, *config)
 
 		if err == nil {
 			next(w, r)
