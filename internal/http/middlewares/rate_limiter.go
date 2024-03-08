@@ -2,12 +2,13 @@ package middlewares
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 
-	"github.com/joaosczip/go-rate-limiter/pkg/datasources"
 	"github.com/joaosczip/go-rate-limiter/pkg/ratelimiter"
+	"github.com/redis/go-redis/v9"
 )
 
 type Response struct {
@@ -15,8 +16,15 @@ type Response struct {
 }
 
 func RateLimiter(next func(w http.ResponseWriter, r *http.Request), config *ratelimiter.RateLimiterConfig) http.Handler {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
 	rateLimiter := ratelimiter.NewRateLimiter(
-		datasources.NewInMemoryDatasource(),
+		ratelimiter.NewRedisDatasource(redisClient),
+		ratelimiter.NewTimeSleeper(),
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,17 +42,27 @@ func RateLimiter(next func(w http.ResponseWriter, r *http.Request), config *rate
 			token = r.Header.Get(config.ConfigByToken.Key)
 		}
 
-		err = rateLimiter.HandleRequest(ip, token, *config)
+		err = rateLimiter.HandleRequest(ip, token, config)
 
 		if err == nil {
 			next(w, r)
 		} else {
-			response := Response{
-				Message: err.Error(),
+			var statusCode int
+			var errMessage string
+
+			if !errors.Is(err, ratelimiter.ErrMaxRequests) {
+				errMessage = "Internal Server Error"
+				statusCode = http.StatusInternalServerError
+			} else {
+				errMessage = err.Error()
+				statusCode = http.StatusTooManyRequests
 			}
 
+			response := Response{
+				Message: errMessage,
+			}
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusTooManyRequests)
+			w.WriteHeader(statusCode)
 			json.NewEncoder(w).Encode(&response)
 		}
 	})

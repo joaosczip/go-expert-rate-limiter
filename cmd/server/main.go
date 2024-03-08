@@ -15,16 +15,10 @@ func listOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.Handle("/", middlewares.RateLimiter(listOrders, &ratelimiter.RateLimiterConfig{
-		ConfigByIP: &ratelimiter.RateLimiterConfigByIP{
-			RequestesPerSecond: 10,
-			BlockUserFor:       30 * time.Second,
-		},
-		ConfigByToken: &ratelimiter.RateLimiterConfigByToken{
-			RequestesPerSecond: 5,
-			BlockUserFor:       10 * time.Second,
-			Key:                "API_KEY",
-		},
-	}))
+	config := ratelimiter.NewRateLimiterConfig(
+		ratelimiter.NewRateLimiterConfigByIP(5, 10*time.Second),
+		ratelimiter.NewRateLimiterConfigByToken(10, 20*time.Second, "API_KEY"),
+	)
+	http.Handle("/", middlewares.RateLimiter(listOrders, config))
 	http.ListenAndServe(":8080", nil)
 }
