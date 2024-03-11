@@ -7,7 +7,7 @@ Este projeto é um `rate limiter` implementado em Go. Ele usa um banco de dados 
 3. Instale as dependências do projeto com o comando go mod download.
 
 ### Executando o Projeto
-Para executar o projeto, você pode usar o comando `go run` no diretório `cmd/server`:
+Para executar o projeto, você pode usar o comando `go run` no diretório `cmd/server` (é necessário que o container do redis esteja em execução):
 
 ```sh
 $ go run cmd/server/main.go
@@ -32,3 +32,15 @@ $ docker-compose up | docker compose up
 
 ### Makefile
 Um Makefile também está incluído para simplificar algumas tarefas comuns. Para ver as tarefas disponíveis, use o comando make help.
+
+Entre os comandos, é possível executar testes de carga através da ferramenta `siege` (garanta que está instalada em sua máquina).
+
+Os testes possíveis contemplam ambos os cenários: bloqueio por IP e por Token, sendo respectivamente:
+
+```sh
+# teste de carga para garantir o bloqueio por IP
+$ make test
+
+# teste de carga para garantir o bloqueio por token
+$ make test-api-key
+```
