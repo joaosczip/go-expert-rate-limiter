@@ -10,7 +10,11 @@ Este projeto é um `rate limiter` implementado em Go. Ele usa um banco de dados 
 Para executar o projeto, você pode usar o comando `go run` no diretório `cmd/server` (é necessário que o container do redis esteja em execução):
 
 ```sh
-$ go run cmd/server/main.go
+# entrando no diretório de startup da aplicação
+$ cd cmd/server
+
+# executando
+$ go run main.go
 ```
 
 O servidor estará rodando na porta 8080.
