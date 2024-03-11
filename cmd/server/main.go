@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/joaosczip/go-rate-limiter/configs"
 	"github.com/joaosczip/go-rate-limiter/internal/http/middlewares"
 	"github.com/joaosczip/go-rate-limiter/pkg/ratelimiter"
 )
@@ -15,10 +16,16 @@ func listOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	config := ratelimiter.NewRateLimiterConfig(
-		ratelimiter.NewRateLimiterConfigByIP(5, 10*time.Second),
-		ratelimiter.NewRateLimiterConfigByToken(10, 20*time.Second, "API_KEY"),
+	envConf, err := configs.LoadConfig(".")
+
+	if err != nil {
+		panic(err)
+	}
+
+	rateLimiterConf := ratelimiter.NewRateLimiterConfig(
+		ratelimiter.NewRateLimiterConfigByIP(envConf.MaxRequestsByIP, time.Duration(envConf.BlockUserForByIP)*time.Second),
+		ratelimiter.NewRateLimiterConfigByToken(envConf.MaxRequestsByToken, time.Duration(envConf.BlockUserForByToken)*time.Second, "API_KEY"),
 	)
-	http.Handle("/", middlewares.RateLimiter(listOrders, config))
+	http.Handle("/", middlewares.RateLimiter(listOrders, rateLimiterConf))
 	http.ListenAndServe(":8080", nil)
 }
