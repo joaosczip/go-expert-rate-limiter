@@ -15,13 +15,7 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-func RateLimiter(next func(w http.ResponseWriter, r *http.Request), config *ratelimiter.RateLimiterConfig) http.Handler {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	})
-
+func RateLimiter(next func(w http.ResponseWriter, r *http.Request), config *ratelimiter.RateLimiterConfig, redisClient *redis.Client) http.Handler {
 	rateLimiter := ratelimiter.NewRateLimiter(
 		ratelimiter.NewRedisDatasource(redisClient),
 		ratelimiter.NewTimeSleeper(),
